@@ -1,0 +1,26 @@
+machine:
+  timezone: Asia/Tokyo
+  environment:
+    GOPATH: "${HOME}/go"
+    PATH: "${GOPATH}/bin:/opt/google-cloud-sdk/platform/google_appengine:${PATH}"
+  post:
+    - sudo -E env PATH=$PATH gcloud components update --quiet
+    - sudo -E env PATH=$PATH gcloud components install app-engine-go --quiet
+    - sudo chmod +x /opt/google-cloud-sdk/platform/google_appengine/{appcfg.py,goapp}
+    - mkdir -pv ${GOPATH}/src/github.com/${CIRCLE_PROJECT_USERNAME}
+    - rsync -acrv ${HOME}/${CIRCLE_PROJECT_REPONAME} ${GOPATH}/src/github.com/${CIRCLE_PROJECT_USERNAME}
+
+general:
+  build_dir: ../go/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+
+test:
+  override:
+    - make test
+
+deployment:
+  production:
+    branch: master
+    commands:
+      - echo ${GCP_SERVICE_KEY} | base64 --decode --ignore-garbage > service_account.json
+      - gcloud auth activate-service-account --key-file service_account.json
+      - make deploy
